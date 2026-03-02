@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Dict, Any, List
-from packaging import version # Perlu: pip install packaging
+from packaging import version
 
 class VortexCore:
     def __init__(self, url: str, parts: int = 8, output_dir: str = "."):
@@ -23,9 +23,13 @@ class VortexCore:
             resp = await client.head(self.url)
             size = int(resp.headers.get("Content-Length", 0))
             cd = resp.headers.get("Content-Disposition")
-            name = cd.split("filename=")[1].strip('"') if cd and "filename=" in cd else self.url.split("/")[-1]
-            name = name.split("?")[0] or "download_vortex"
+            
 
+            if cd and "filename=" in cd:
+                name = cd.split("filename=")[1].strip('"')
+            else:
+                name = self.url.split("/")[-1].split("?")[0] or "download_vortex"
+            
             accept_ranges = resp.headers.get("Accept-Ranges") == "bytes"
             self.metadata = {"name": name, "size": size, "ranges": accept_ranges}
 
@@ -35,6 +39,7 @@ class VortexCore:
                     self.state = json.load(f)
                     self.parts = len(self.state)
             else:
+                self.state = [] 
                 self._prepare_new_state(size)
 
             return self.metadata
@@ -55,6 +60,7 @@ class VortexCore:
     async def download_part(self, client: httpx.AsyncClient, part_id: int, file_path: Path, callback):
         p = self.state[part_id]
         if p["completed"]:
+
             await callback(part_id, (p["current"] - p["start"]))
             return
 
@@ -63,27 +69,32 @@ class VortexCore:
         try:
             async with client.stream("GET", self.url, headers=headers) as resp:
                 resp.raise_for_status()
+
                 with open(file_path, "rb+") as f:
                     f.seek(p["current"])
                     async for chunk in resp.aiter_bytes():
                         f.write(chunk)
-                        p["current"] += len(chunk)
-                        await callback(part_id, len(chunk))
-
-                        self._save_checkpoint()
-                p["completed"] = True
-                self._save_checkpoint()
+                        chunk_len = len(chunk)
+                        p["current"] += chunk_len
+                        await callback(part_id, chunk_len)
+                        
+                    p["completed"] = True
+                    self._save_checkpoint()
         except Exception:
-            pass
+            self._save_checkpoint() 
 
     def _save_checkpoint(self):
-        with open(self._get_state_path(), "w") as f:
-            json.dump(self.state, f)
+        try:
+            with open(self._get_state_path(), "w") as f:
+                json.dump(self.state, f)
+        except Exception:
+            pass
 
     async def start(self, progress_callback) -> str:
         meta = self.metadata
         output_path = self.output_dir / meta['name']
         self.output_dir.mkdir(parents=True, exist_ok=True)
+
 
         if not output_path.exists():
             with open(output_path, "wb") as f:
@@ -98,15 +109,23 @@ class VortexCore:
 
         return str(output_path)
 
-        async def check_for_updates(current_version: str):
-    url = "https://api.github.com/repos/Jenderal92/vortex-dl/releases/latest"
-    async with httpx.AsyncClient() as client:
+    def get_checksum(self, file_path: str) -> str:
+
+        hash_md5 = hashlib.md5()
+        with open(file_path, "rb") as f:
+            for chunk in iter(lambda: f.read(4096), b""):
+                hash_md5.update(chunk)
+        return hash_md5.hexdigest()
+
+async def check_for_updates(current_version: str):
+    repo_url = "https://api.github.com/repos/Jenderal92/vortex-dl/releases/latest"
+    async with httpx.AsyncClient(timeout=5.0) as client:
         try:
-            response = await client.get(url)
+            response = await client.get(repo_url)
             if response.status_code == 200:
                 latest_data = response.json()
-                latest_version = latest_data['tag_name'].replace('v', '')
-
+                latest_version = latest_data['tag_name'].lstrip('v')
+                
                 if version.parse(latest_version) > version.parse(current_version):
                     return latest_version
         except Exception:
