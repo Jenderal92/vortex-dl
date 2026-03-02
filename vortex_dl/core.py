@@ -4,6 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Dict, Any, List
+from packaging import version # Perlu: pip install packaging
 
 class VortexCore:
     def __init__(self, url: str, parts: int = 8, output_dir: str = "."):
@@ -12,7 +13,7 @@ class VortexCore:
         self.output_dir = Path(output_dir)
         self.timeout = httpx.Timeout(10.0, connect=60.0, read=None)
         self.metadata = {}
-        self.state = [] 
+        self.state = []
 
     def _get_state_path(self) -> Path:
         return self.output_dir / f"{self.metadata['name']}.vortex"
@@ -24,10 +25,10 @@ class VortexCore:
             cd = resp.headers.get("Content-Disposition")
             name = cd.split("filename=")[1].strip('"') if cd and "filename=" in cd else self.url.split("/")[-1]
             name = name.split("?")[0] or "download_vortex"
-            
+
             accept_ranges = resp.headers.get("Accept-Ranges") == "bytes"
             self.metadata = {"name": name, "size": size, "ranges": accept_ranges}
-            
+
             state_path = self._get_state_path()
             if state_path.exists() and accept_ranges:
                 with open(state_path, "r") as f:
@@ -35,7 +36,7 @@ class VortexCore:
                     self.parts = len(self.state)
             else:
                 self._prepare_new_state(size)
-                
+
             return self.metadata
 
     def _prepare_new_state(self, size: int):
@@ -47,19 +48,18 @@ class VortexCore:
                 "id": i,
                 "start": start,
                 "end": end,
-                "current": start, 
+                "current": start,
                 "completed": False
             })
 
     async def download_part(self, client: httpx.AsyncClient, part_id: int, file_path: Path, callback):
         p = self.state[part_id]
         if p["completed"]:
-
             await callback(part_id, (p["current"] - p["start"]))
             return
 
         headers = {"Range": f"bytes={p['current']}-{p['end']}"}
-        
+
         try:
             async with client.stream("GET", self.url, headers=headers) as resp:
                 resp.raise_for_status()
@@ -69,7 +69,7 @@ class VortexCore:
                         f.write(chunk)
                         p["current"] += len(chunk)
                         await callback(part_id, len(chunk))
- 
+
                         self._save_checkpoint()
                 p["completed"] = True
                 self._save_checkpoint()
@@ -95,5 +95,20 @@ class VortexCore:
 
         if all(p["completed"] for p in self.state):
             self._get_state_path().unlink(missing_ok=True)
-            
+
         return str(output_path)
+
+        async def check_for_updates(current_version: str):
+    url = "https://api.github.com/repos/Jenderal92/vortex-dl/releases/latest"
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url)
+            if response.status_code == 200:
+                latest_data = response.json()
+                latest_version = latest_data['tag_name'].replace('v', '')
+
+                if version.parse(latest_version) > version.parse(current_version):
+                    return latest_version
+        except Exception:
+            pass 
+    return None
