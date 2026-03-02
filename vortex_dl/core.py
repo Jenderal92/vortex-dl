@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 from typing import Dict, Any, List
-from packaging import version
+from packaging import version # Perlu: pip install packaging
 
 class VortexCore:
     def __init__(self, url: str, parts: int = 8, output_dir: str = "."):
@@ -122,12 +122,13 @@ async def check_for_updates(current_version: str):
     async with httpx.AsyncClient(timeout=5.0) as client:
         try:
             response = await client.get(repo_url)
+
             if response.status_code == 200:
                 latest_data = response.json()
                 latest_version = latest_data['tag_name'].lstrip('v')
-                
+
                 if version.parse(latest_version) > version.parse(current_version):
                     return latest_version
-        except Exception:
-            pass 
-    return None
+        except Exception as e:
+
+            pass
