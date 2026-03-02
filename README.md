@@ -115,5 +115,3 @@ Didistribusikan di bawah Lisensi MIT. Lihat file `LICENSE` untuk informasi lebih
 ---
 
 Created with ❤️ by **Smile Of Beauty**
-
-```
