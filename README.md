@@ -1,4 +1,3 @@
-```markdown
 # 🌀 Vortex-DL
 > **High-Performance Asynchronous Multi-part Downloader with a Touch of Elegance.**
 
@@ -97,6 +96,4 @@ Didistribusikan di bawah Lisensi MIT. Lihat file `LICENSE` untuk informasi lebih
 ---
 
 Created with ❤️ by **Smile Of Beauty**
-
-```
 
