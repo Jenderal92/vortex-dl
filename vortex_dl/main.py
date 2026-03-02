@@ -10,7 +10,7 @@ from rich.table import Table
 from .core import VortexCore, check_for_updates
 from .ui import VortexUI
 
-__version__ = "0.9.0"
+__version__ = "1.0.0"
 
 app = typer.Typer(help="Vortex-DL: High-Performance Async Downloader")
 console = Console()
@@ -94,3 +94,4 @@ def download(
 
 if __name__ == "__main__":
     app()
+
