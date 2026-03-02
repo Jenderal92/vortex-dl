@@ -1,9 +1,11 @@
 import asyncio
 import time
 import typer
+import sys
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
+
 from .core import VortexCore
 from .ui import VortexUI
 
@@ -54,7 +56,7 @@ async def run_vortex(url: str, parts: int, output: str):
 
         start_t = time.time()
         try:
-            file_path = await core.start(update_ui)
+            file_path = await core.start(update_ui) 
         except Exception as e:
             console.print(f"\n[bold red]Download terhenti:[/] {e}")
             return
@@ -70,8 +72,11 @@ async def run_vortex(url: str, parts: int, output: str):
     summary.add_row("[yellow]Kecepatan Rata-rata[/]", f"{speed:.2f} MB/s")
     
     with console.status("[italic]Memverifikasi Integritas File (MD5)...[/]"):
-        checksum = core.get_checksum(file_path)
-        summary.add_row("[yellow]MD5 Checksum[/]", checksum)
+        try:
+            checksum = core.get_checksum(file_path)
+            summary.add_row("[yellow]MD5 Checksum[/]", checksum)
+        except:
+            summary.add_row("[yellow]MD5 Checksum[/]", "N/A")
     
     console.print(summary)
 
@@ -81,13 +86,12 @@ def download(
     parts: int = typer.Option(8, "--parts", "-p", help="Jumlah part paralel (1-32)"),
     output: str = typer.Option(".", "--output", "-o", help="Direktori penyimpanan")
 ):
-    """
-    🌀 Jalankan Vortex-DL untuk mengunduh file dengan kecepatan cahaya.
-    """
+    """🌀 Jalankan Vortex-DL untuk mengunduh file dengan kecepatan cahaya."""
     try:
         asyncio.run(run_vortex(url, parts, output))
     except KeyboardInterrupt:
-        console.print("\n[bold red]✘ Download dipause oleh pengguna.[/] Status disimpan.")
+        console.print("\n[bold red]✖ Download dipause oleh pengguna.[/] Status disimpan.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     app()
