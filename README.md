@@ -44,7 +44,7 @@ Perbandingan waktu unduh file **500MB** (Koneksi 100Mbps):
 Klon repositori ini dan instal secara lokal:
 
 ```bash
-git clone [https://github.com/Jenderal92/vortex-dl.git](https://github.com/Jenderal92/vortex-dl.git)
+git clone https://github.com/Jenderal92/vortex-dl.git
 cd vortex-dl
 pip install .
 
@@ -96,4 +96,5 @@ Didistribusikan di bawah Lisensi MIT. Lihat file `LICENSE` untuk informasi lebih
 ---
 
 Created with ❤️ by **Smile Of Beauty**
+
 
