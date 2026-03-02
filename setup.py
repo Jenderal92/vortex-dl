@@ -6,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="vortex-dl",
-    version="0.9.0", 
+    version="1.0.0", 
     author="Smile Of Beauty",
     author_email="Jenderal1337@gmail.com",
     description="🌀 Ultra-fast Asynchronous Multi-part CLI Downloader",
@@ -44,3 +44,4 @@ setup(
         "Source": "https://github.com/Jenderal92/vortex-dl",
     },
 )
+
