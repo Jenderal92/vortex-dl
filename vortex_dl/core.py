@@ -6,6 +6,7 @@ import hashlib
 from pathlib import Path
 from typing import Dict, Any, List
 from packaging import version
+import os
 
 class VortexCore:
     def __init__(self, url: str, parts: int = 8, output_dir: str = "."):
@@ -116,3 +117,11 @@ async def check_for_updates(current_version: str):
         except Exception:
             pass
     return None
+   
+async def process_batch_file(file_path: str):
+    if not os.path.exists(file_path):
+        return None
+    
+    with open(file_path, 'r') as f:
+        links = [line.strip() for line in f.readlines() if line.strip()]
+    return links
