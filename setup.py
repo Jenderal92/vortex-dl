@@ -21,6 +21,7 @@ setup(
         "rich>=13.7.0",
         "typer>=0.9.0",
         "shellingham>=1.5.0", 
+        "packaging>=23.0",
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -43,4 +44,5 @@ setup(
         "Bug Reports": "https://github.com/Jenderal92/vortex-dl/issues",
         "Source": "https://github.com/Jenderal92/vortex-dl",
     },
+
 )
