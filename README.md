@@ -1,4 +1,7 @@
 # 🌀 Vortex-DL
+
+![vortex-dl](https://github.com/user-attachments/assets/24dfe9e4-eccd-444b-9de5-fc05087ebf0c)
+
 > **High-Performance Asynchronous Multi-part Downloader with a Touch of Elegance.**
 
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://www.python.org/)
@@ -96,5 +99,6 @@ Didistribusikan di bawah Lisensi MIT. Lihat file `LICENSE` untuk informasi lebih
 ---
 
 Created with ❤️ by **Smile Of Beauty**
+
 
 
