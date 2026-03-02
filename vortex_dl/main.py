@@ -2,9 +2,11 @@ import asyncio
 import time
 import typer
 import sys
+from typing import Optional
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
+
 
 from .core import VortexCore
 from .ui import VortexUI
@@ -14,23 +16,21 @@ console = Console()
 
 async def run_vortex(url: str, parts: int, output: str):
     console.clear()
+   
     console.print(VortexUI.header())
     
     core = VortexCore(url, parts, output)
     
-    with console.status("[bold yellow]Menghubungkan ke server dan mengecek status...[/]"):
+    with console.status("[bold yellow]Menghubungkan ke server...[/]"):
         try:
             meta = await core.get_metadata()
         except Exception as e:
-            console.print(f"[bold red]Error:[/] Gagal mengambil metadata. {e}")
+            console.print(f"[bold red]Error:[/] {e}")
             return
 
-    is_resume = any(p["current"] > p["start"] for p in core.state)
-    
     info_table = Table.grid(padding=(0, 2))
     info_table.add_row("[cyan]File:[/]", meta['name'])
     info_table.add_row("[cyan]Size:[/]", f"{meta['size'] / 1e6:.2f} MB")
-    info_table.add_row("[cyan]Mode:[/]", "Multi-part (Resume)" if is_resume else "New Download")
     console.print(info_table)
     console.print("")
 
@@ -56,41 +56,30 @@ async def run_vortex(url: str, parts: int, output: str):
 
         start_t = time.time()
         try:
+
             file_path = await core.start(update_ui) 
         except Exception as e:
-            console.print(f"\n[bold red]Download terhenti:[/] {e}")
+            console.print(f"\n[bold red]Terhenti:[/] {e}")
             return
-        end_t = time.time()
+        
+        duration = time.time() - start_t
 
-    duration = end_t - start_t
+
     speed = (meta['size'] / 1e6) / duration if duration > 0 else 0
-    
-    console.print("\n[bold green]✔ Download Selesai![/]")
-    
-    summary = Table(show_header=False, border_style="blue", box=None)
-    summary.add_row("[yellow]Lokasi[/]", file_path)
-    summary.add_row("[yellow]Kecepatan Rata-rata[/]", f"{speed:.2f} MB/s")
-    
-    with console.status("[italic]Memverifikasi Integritas File (MD5)...[/]"):
-        try:
-            checksum = core.get_checksum(file_path)
-            summary.add_row("[yellow]MD5 Checksum[/]", checksum)
-        except:
-            summary.add_row("[yellow]MD5 Checksum[/]", "N/A")
-    
-    console.print(summary)
+    console.print(f"\n[bold green]✔ Selesai dalam {duration:.2f} detik![/]")
+    console.print(f"[yellow]Lokasi:[/] {file_path}")
+    console.print(f"[yellow]Speed :[/] {speed:.2f} MB/s")
 
 @app.command()
 def download(
-    url: str = typer.Argument(..., help="URL file yang ingin diunduh"),
-    parts: int = typer.Option(8, "--parts", "-p", help="Jumlah part paralel (1-32)"),
-    output: str = typer.Option(".", "--output", "-o", help="Direktori penyimpanan")
+    url: str = typer.Argument(..., help="URL file"),
+    parts: int = typer.Option(8, "--parts", "-p"),
+    output: str = typer.Option(".", "--output", "-o")
 ):
-    """🌀 Jalankan Vortex-DL untuk mengunduh file dengan kecepatan cahaya."""
     try:
         asyncio.run(run_vortex(url, parts, output))
     except KeyboardInterrupt:
-        console.print("\n[bold red]✖ Download dipause oleh pengguna.[/] Status disimpan.")
+        console.print("\n[bold red]✖ Dibatalkan.[/]")
         sys.exit(1)
 
 if __name__ == "__main__":
