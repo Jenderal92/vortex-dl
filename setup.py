@@ -1,13 +1,12 @@
 import os
 from setuptools import setup, find_packages
 
-
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
     name="vortex-dl",
-    version="1.0.0",
+    version="0.9.0", 
     author="Smile Of Beauty",
     author_email="Jenderal1337@gmail.com",
     description="🌀 Ultra-fast Asynchronous Multi-part CLI Downloader",
@@ -21,7 +20,7 @@ setup(
         "rich>=13.7.0",
         "typer>=0.9.0",
         "shellingham>=1.5.0", 
-        "packaging>=23.0",
+        "packaging>=23.0", 
     ],
     classifiers=[
         "Development Status :: 4 - Beta",
@@ -44,5 +43,4 @@ setup(
         "Bug Reports": "https://github.com/Jenderal92/vortex-dl/issues",
         "Source": "https://github.com/Jenderal92/vortex-dl",
     },
-
 )
