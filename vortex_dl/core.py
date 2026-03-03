@@ -1,0 +1,142 @@
+import asyncio
+import httpx
+import json
+import hashlib
+from pathlib import Path
+from typing import Dict, Any, List, Optional
+from packaging import version
+
+class VortexCore:
+    def __init__(self, url: str, parts: int = 8, output_dir: str = ".", headers: Optional[Dict[str, str]] = None):
+        self.url = url
+        self.parts = parts
+        self.output_dir = Path(output_dir)
+        self.timeout = httpx.Timeout(10.0, connect=60.0, read=None)
+
+        self.headers = headers or {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+        self.metadata = {}
+        self.state = []
+        self.max_retries = 5  
+
+    def _get_state_path(self) -> Path:
+        url_hash = hashlib.md5(self.url.encode()).hexdigest()[:8]
+        name = self.metadata.get('name', 'download')
+        return self.output_dir / f"{name}_{url_hash}.vortex"
+
+    async def get_metadata(self) -> Dict[str, Any]:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=self.timeout, headers=self.headers) as client:
+            resp = await client.head(self.url)
+            size = int(resp.headers.get("Content-Length", 0))
+            cd = resp.headers.get("Content-Disposition")
+            
+            if cd and "filename=" in cd:
+                # Membersihkan nama file dari header content-disposition
+                name = cd.split("filename=")[1].strip('"').strip("'")
+            else:
+                name = self.url.split("/")[-1].split("?")[0] or "download_vortex"
+            
+            accept_ranges = resp.headers.get("Accept-Ranges") == "bytes"
+            self.metadata = {"name": name, "size": size, "ranges": accept_ranges}
+
+            state_path = self._get_state_path()
+            if state_path.exists() and accept_ranges:
+                try:
+                    with open(state_path, "r") as f:
+                        self.state = json.load(f)
+                    self.parts = len(self.state)
+                except:
+                    self._prepare_new_state(size)
+            else:
+                self.state = []
+                self._prepare_new_state(size)
+            
+            return self.metadata
+
+    def _prepare_new_state(self, size: int):
+        chunk_size = size // self.parts
+        for i in range(self.parts):
+            start = i * chunk_size
+            end = size - 1 if i == self.parts - 1 else (i + 1) * chunk_size - 1
+            self.state.append({
+                "id": i, "start": start, "end": end,
+                "current": start, "completed": False
+            })
+
+    async def download_part(self, client: httpx.AsyncClient, part_id: int, file_path: Path, callback):
+        p = self.state[part_id]
+        if p["completed"]:
+            # Jika sudah selesai, laporkan progress penuh ke UI
+            await callback(part_id, (p["current"] - p["start"]))
+            return
+
+        for attempt in range(self.max_retries):
+            headers = {**self.headers, "Range": f"bytes={p['current']}-{p['end']}"}
+            try:
+                async with client.stream("GET", self.url, headers=headers) as resp:
+                    if resp.status_code in [200, 206]:
+                        with open(file_path, "rb+") as f:
+                            f.seek(p["current"])
+                            async for chunk in resp.aiter_bytes():
+                                f.write(chunk)
+                                chunk_len = len(chunk)
+                                p["current"] += chunk_len
+                                await callback(part_id, chunk_len)
+                                self._save_checkpoint()
+                        
+                        p["completed"] = True
+                        self._save_checkpoint()
+                        return 
+            except (httpx.HTTPError, IOError):
+                if attempt < self.max_retries - 1:
+                    await asyncio.sleep(2 ** attempt) # Exponential backoff
+                continue
+        
+        self._save_checkpoint()
+
+    def _save_checkpoint(self):
+        try:
+            with open(self._get_state_path(), "w") as f:
+                json.dump(self.state, f)
+        except: pass
+
+    async def start(self, progress_callback) -> str:
+        meta = self.metadata
+        output_path = self.output_dir / meta['name']
+        self.output_dir.mkdir(parents=True, exist_ok=True)
+
+        # Pre-allocate file space
+        if not output_path.exists():
+            with open(output_path, "wb") as f:
+                f.truncate(meta['size'])
+
+        async with httpx.AsyncClient(timeout=self.timeout, follow_redirects=True, headers=self.headers) as client:
+            tasks = [self.download_part(client, i, output_path, progress_callback) for i in range(self.parts)]
+            await asyncio.gather(*tasks)
+
+        # Cleanup state file jika semua part sukses
+        if all(p["completed"] for p in self.state):
+            self._get_state_path().unlink(missing_ok=True)
+            
+        return str(output_path)
+
+    def verify_checksum(self, file_path: str, expected_hash: str) -> bool:
+        """Memverifikasi integritas file menggunakan SHA256."""
+        sha256_hash = hashlib.sha256()
+        with open(file_path, "rb") as f:
+            for byte_block in iter(lambda: f.read(4096), b""):
+                sha256_hash.update(byte_block)
+        return sha256_hash.hexdigest().lower() == expected_hash.lower()
+
+async def check_for_updates(current_version: str):
+    url = "https://pypi.org/pypi/vortex-dl/json"
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        try:
+            resp = await client.get(url)
+            if resp.status_code == 200:
+                latest_v = resp.json()["info"]["version"]
+                if version.parse(latest_v) > version.parse(current_version):
+                    return latest_v
+        except: pass
+    return None
