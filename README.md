@@ -110,4 +110,5 @@ Didistribusikan di bawah Lisensi **MIT**. Lihat file `LICENSE` untuk informasi l
 
 ---
 
-**Dibuat dengan ❤️ oleh [Smile Of Beauty**](https://github.com/Jenderal92)
+**Dibuat dengan ❤️ oleh [Smile Of Beauty**](https://github.com/smileofbeauty)
+
